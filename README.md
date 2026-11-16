@@ -100,6 +100,7 @@ TEST_DATABASE_URL="postgresql://postgres:TU_CLAVE@localhost:5432/rcd_test" .venv
 | Datos reales (IDESC, NSR-10) | Hecho (16-nov-2026) |
 | Docker + GeoServer, desplegado en el Lenovo | Hecho (16-nov-2026) |
 | Repositorio en GitHub | Hecho: [Niick08/810-por-mejor-gestion-cali](https://github.com/Niick08/810-por-mejor-gestion-cali) |
-| Memoria, video y publicación en internet (Funnel) | Siguiente |
+| Memoria ([Word](docs/memoria/Memoria_Proyecto_Final_RCD.docx) · [PDF](docs/memoria/Memoria_Proyecto_Final_RCD.pdf)) | v1 (16-nov-2026): faltan autor, fecha y enlaces por confirmar |
+| Video y publicación en internet (Funnel) | Siguiente |
 | Implementación | Pendiente |
 | Memoria y video | Pendiente |

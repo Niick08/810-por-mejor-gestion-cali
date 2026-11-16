@@ -1,0 +1,5 @@
+# Solo para regenerar la memoria (capturas, diagramas y Word). La plataforma no los necesita.
+python-docx>=1.1
+playwright>=1.40
+pypdfium2>=4.0
+pillow>=10.0
