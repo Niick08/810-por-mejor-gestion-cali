@@ -1,0 +1,5 @@
+# Todo el proyecto con fin de línea LF: corre dentro de contenedores Linux
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.pdf binary

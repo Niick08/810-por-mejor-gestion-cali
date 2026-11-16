@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trazabilidad RCD · Administración</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+  <link rel="stylesheet" href="/css/estilos.css">
+</head>
+<body>
+<nav class="navbar bg-white border-bottom px-3 py-2">
+  <span class="marca me-4"><i class="bi bi-truck"></i> Trazabilidad RCD</span>
+  <ul class="nav nav-pills me-auto" id="pestanas">
+    <li class="nav-item"><a class="nav-link active" href="#dashboard" data-p="dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+    <li class="nav-item"><a class="nav-link" href="#seguimiento" data-p="seguimiento"><i class="bi bi-broadcast"></i> Seguimiento</a></li>
+    <li class="nav-item"><a class="nav-link" href="#control" data-p="control"><i class="bi bi-bell"></i> Control <span class="badge text-bg-danger" id="n-alertas"></span></a></li>
+    <li class="nav-item"><a class="nav-link" href="#geocercas" data-p="geocercas"><i class="bi bi-bounding-box"></i> Geocercas</a></li>
+    <li class="nav-item"><a class="nav-link" href="#movimientos" data-p="movimientos"><i class="bi bi-table"></i> Movimientos</a></li>
+    <li class="nav-item"><a class="nav-link" href="#flota" data-p="flota"><i class="bi bi-people"></i> Flota y usuarios</a></li>
+  </ul>
+  <span class="small text-secondary me-2" data-usuario></span>
+  <button class="btn btn-sm btn-outline-secondary" onclick="salir()"><i class="bi bi-box-arrow-right"></i> Salir</button>
+</nav>
+
+<main class="container-fluid py-3">
+  <!-- ===================== P1 DASHBOARD ===================== -->
+  <section id="p-dashboard" class="pestana">
+    <div class="row g-3 mb-3">
+      <div class="col-lg-4"><div class="kpi">
+        <div class="etiqueta">Meta de aprovechamiento (Res. 0472, art. 19)</div>
+        <div class="d-flex align-items-baseline gap-2"><span class="valor" id="k-pct">—</span><span class="text-secondary" id="k-meta"></span></div>
+        <div class="progress meta-barra my-2"><div class="progress-bar" id="k-barra"></div></div>
+        <div class="small" id="k-falta"></div>
+      </div></div>
+      <div class="col-6 col-lg-2"><div class="kpi"><div class="etiqueta">m³ recibidos</div><div class="valor" id="k-recibidos">—</div></div></div>
+      <div class="col-6 col-lg-2"><div class="kpi"><div class="etiqueta">Movimientos en curso</div><div class="valor" id="k-curso">—</div></div></div>
+      <div class="col-6 col-lg-2"><div class="kpi"><div class="etiqueta">Alertas abiertas</div><div class="valor" id="k-alertas">—</div><div class="small text-danger" id="k-altas"></div></div></div>
+      <div class="col-6 col-lg-2"><div class="kpi"><div class="etiqueta">Arrojos del mes</div><div class="valor" id="k-arrojos">—</div></div></div>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-lg-8"><div class="kpi"><div class="fw-semibold mb-2">Tendencia de m³ por tipo (semanal)</div><canvas id="g-tendencia" height="110"></canvas></div></div>
+      <div class="col-lg-4"><div class="kpi"><div class="fw-semibold mb-2">Movimientos por estado</div><canvas id="g-estados" height="220"></canvas></div></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-5"><div class="kpi"><div class="fw-semibold mb-2">Avance por obra</div><div id="t-obras"></div></div></div>
+      <div class="col-lg-4"><div class="kpi"><div class="fw-semibold mb-2">Operarios más activos</div><div id="t-operarios"></div></div></div>
+      <div class="col-lg-3"><div class="kpi">
+        <div class="fw-semibold mb-2">Balance de receptores</div><div id="t-balance"></div>
+        <hr><div class="fw-semibold mb-2">Reporte trimestral (art. 16)</div>
+        <div class="input-group input-group-sm mb-2">
+          <input class="form-control" type="number" id="r-anio" title="Año"><select class="form-select" id="r-trim" title="Trimestre">
+            <option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+        <button class="btn btn-primary btn-sm w-100" id="b-reporte"><i class="bi bi-download"></i> Descargar CSV</button>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- ===================== P2 SEGUIMIENTO ===================== -->
+  <section id="p-seguimiento" class="pestana d-none">
+    <div class="row g-3">
+      <div class="col-lg-3 panel-lateral"><div class="fw-semibold mb-2">Viajes en tránsito</div><div id="s-lista"></div></div>
+      <div class="col-lg-6"><div id="s-mapa" class="mapa-pc"></div></div>
+      <div class="col-lg-3 panel-lateral">
+        <div class="fw-semibold mb-2">Cámara de carga · <span id="s-placa">—</span></div>
+        <div class="camara mb-2"><span class="vivo">● simulada</span><span id="s-camara">Selecciona un viaje</span></div>
+        <div class="small text-secondary mb-3">La cámara apunta al interior de la volqueta y se enciende con el motor.
+          En este proyecto la señal es simulada.</div>
+        <div class="fw-semibold mb-2">Línea de tiempo</div>
+        <ul class="linea-tiempo small" id="s-eventos"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== P3 CONTROL ===================== -->
+  <section id="p-control" class="pestana d-none">
+    <div class="row g-3">
+      <div class="col-lg-3 panel-lateral">
+        <div class="d-flex align-items-center mb-2"><span class="fw-semibold">Alertas abiertas</span>
+          <select class="form-select form-select-sm ms-auto w-auto" id="c-filtro"><option value="abierta">Abiertas</option><option value="todas">Todas</option></select></div>
+        <div id="c-alertas"></div>
+      </div>
+      <div class="col-lg-9"><div id="c-mapa" class="mapa-pc"></div></div>
+    </div>
+  </section>
+
+  <!-- ===================== P4 GEOCERCAS ===================== -->
+  <section id="p-geocercas" class="pestana d-none">
+    <div class="row g-3">
+      <div class="col-lg-8"><div id="g-mapa" class="mapa-pc"></div></div>
+      <div class="col-lg-4 panel-lateral">
+        <div class="kpi mb-3">
+          <div class="fw-semibold mb-1">Nueva geometría</div>
+          <div class="small text-secondary mb-2">Dibuja un <b>polígono</b> (receptor o zona) o una <b>línea</b> (río o canal: se le aplica la franja con Turf.js).</div>
+          <div id="g-form" class="d-none">
+            <div class="btn-group w-100 mb-2" role="group">
+              <input type="radio" class="btn-check" name="g-que" id="g-receptor" checked><label class="btn btn-outline-success btn-sm" for="g-receptor">Receptor propio</label>
+              <input type="radio" class="btn-check" name="g-que" id="g-zona"><label class="btn btn-outline-danger btn-sm" for="g-zona">Zona prohibida</label>
+            </div>
+            <div id="g-campos-receptor">
+              <input class="form-control form-control-sm mb-2" id="g-nombre" placeholder="Nombre del receptor">
+              <select class="form-select form-select-sm mb-2" id="g-tipo-receptor">
+                <option value="punto_limpio">Punto limpio</option><option value="planta_aprovechamiento">Planta de aprovechamiento</option>
+                <option value="estacion_transferencia">Estación de transferencia</option><option value="disposicion_final">Disposición final</option></select>
+              <input class="form-control form-control-sm mb-2" id="g-pin" placeholder="PIN DAGMA">
+              <div class="small text-secondary">Acepta</div><div id="g-acepta" class="mb-2 small"></div>
+            </div>
+            <div id="g-campos-zona" class="d-none">
+              <select class="form-select form-select-sm mb-2" id="g-tipo-zona">
+                <option value="canal">Canal</option><option value="rio">Río</option><option value="quebrada">Quebrada</option>
+                <option value="humedal">Humedal</option><option value="parque">Parque</option><option value="zona_verde">Zona verde</option></select>
+              <input class="form-control form-control-sm mb-2" id="g-zona-nombre" placeholder="Nombre">
+              <div class="input-group input-group-sm mb-2"><span class="input-group-text">Franja (m)</span><input class="form-control" type="number" id="g-franja" value="30"></div>
+            </div>
+            <button class="btn btn-primary btn-sm w-100" id="g-guardar">Guardar</button>
+          </div>
+        </div>
+        <div class="fw-semibold mb-1">Mis receptores</div><div id="g-receptores" class="mb-3"></div>
+        <div class="fw-semibold mb-1">Zonas prohibidas</div><div id="g-zonas"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== P5 MOVIMIENTOS ===================== -->
+  <section id="p-movimientos" class="pestana d-none">
+    <div class="d-flex flex-wrap gap-2 mb-2 align-items-end">
+      <div><label class="form-label small mb-0">Estado</label><select class="form-select form-select-sm" id="m-estado">
+        <option value="">Todos</option><option value="abierto">Abierto</option><option value="rechazado">Rechazado</option><option value="cerrado">Cerrado</option>
+        <option value="cerrado_faltante">Con faltante</option><option value="sin_cierre">Sin cierre</option><option value="anulado">Anulado</option></select></div>
+      <div><label class="form-label small mb-0">Placa</label><input class="form-control form-control-sm" id="m-placa" size="8"></div>
+      <div><label class="form-label small mb-0">Desde</label><input class="form-control form-control-sm" type="date" id="m-desde"></div>
+      <div><label class="form-label small mb-0">Hasta</label><input class="form-control form-control-sm" type="date" id="m-hasta"></div>
+      <button class="btn btn-sm btn-primary" id="m-filtrar"><i class="bi bi-funnel"></i> Filtrar</button>
+      <button class="btn btn-sm btn-outline-secondary" id="m-csv"><i class="bi bi-download"></i> Exportar</button>
+      <button class="btn btn-sm btn-outline-danger ms-auto" id="m-anular-rango"><i class="bi bi-calendar-x"></i> Anular por rango de fechas</button>
+    </div>
+    <div class="small text-secondary mb-2">Anular no borra: el movimiento deja de contar pero la evidencia se conserva. Los cerrados no se pueden anular.</div>
+    <div class="kpi p-0"><table class="table table-hover tabla-compacta mb-0"><thead class="table-light"><tr>
+      <th>Código</th><th>Estado</th><th>Placa</th><th>Origen</th><th>Material</th><th class="text-end">m³</th><th>Abierto</th><th>Receptor</th><th></th></tr></thead>
+      <tbody id="m-tabla"></tbody></table></div>
+  </section>
+
+  <!-- ===================== P6 FLOTA Y USUARIOS ===================== -->
+  <section id="p-flota" class="pestana d-none">
+    <div class="row g-3">
+      <div class="col-lg-6"><div class="kpi">
+        <div class="fw-semibold mb-2">Vehículos</div><div id="f-vehiculos"></div>
+        <form class="row g-2 mt-2" id="f-nuevo-vehiculo">
+          <div class="col-4"><input class="form-control form-control-sm" id="v-placa" placeholder="Placa" required></div>
+          <div class="col-4"><input class="form-control form-control-sm" id="v-capacidad" type="number" step="0.5" placeholder="m³"></div>
+          <div class="col-4"><button class="btn btn-sm btn-primary w-100">Agregar</button></div>
+          <div class="col-12 small"><label><input type="checkbox" id="v-gps"> GPS</label> <label class="ms-3"><input type="checkbox" id="v-camara"> Cámara de carga</label></div>
+        </form>
+      </div></div>
+      <div class="col-lg-6"><div class="kpi">
+        <div class="fw-semibold mb-2">Usuarios</div><div id="f-usuarios"></div>
+        <form class="row g-2 mt-2" id="f-nuevo-usuario">
+          <div class="col-6"><input class="form-control form-control-sm" id="u-nombre" placeholder="Nombre" required></div>
+          <div class="col-6"><input class="form-control form-control-sm" id="u-email" type="email" placeholder="Correo" required></div>
+          <div class="col-4"><select class="form-select form-select-sm" id="u-perfil"><option value="portero">Portero</option>
+            <option value="conductor">Conductor</option><option value="inspector">Inspector</option><option value="">Administrador</option></select></div>
+          <div class="col-4"><input class="form-control form-control-sm" id="u-clave" type="password" placeholder="Clave (8+)" required></div>
+          <div class="col-4"><button class="btn btn-sm btn-primary w-100">Agregar</button></div>
+        </form>
+      </div></div>
+    </div>
+  </section>
+</main>
+
+<!-- Corregir ubicación -->
+<div class="modal fade" id="modal-ubicacion" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title">Corregir ubicación · <span id="u-codigo"></span></h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><div class="small text-secondary mb-2">Arrastra el pin al lugar correcto. El cambio queda auditado con tu usuario.</div>
+    <div id="u-mapa" style="height:380px;border-radius:10px"></div></div>
+  <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+    <button class="btn btn-primary" id="u-guardar">Guardar ubicación</button></div>
+</div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="/js/comun.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

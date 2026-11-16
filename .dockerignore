@@ -1,0 +1,8 @@
+.venv
+.env
+docker.env
+fotos
+**/__pycache__
+.pytest_cache
+.git
+tests

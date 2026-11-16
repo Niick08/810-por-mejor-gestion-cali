@@ -1,0 +1,79 @@
+# Plataforma de trazabilidad geográfica de RCD — todo el sistema en contenedores.
+#   docker compose --env-file docker.env up -d --build      (copiar antes docker.env.example → docker.env)
+# Igual en Windows (Docker Desktop) y en Linux (el servidor Lenovo).
+name: rcd
+
+services:
+  db:                                   # PostgreSQL 16 + PostGIS + pgRouting, con esquema, reglas y demo
+    build: { context: ., dockerfile: docker/db.Dockerfile }
+    environment:
+      POSTGRES_DB: rcd
+      POSTGRES_USER: rcd
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en docker.env}
+    volumes: [ "datos_db:/var/lib/postgresql/data" ]
+    ports: [ "127.0.0.1:${DB_PORT:-5433}:5432" ]       # solo desde el mismo equipo (para QGIS o psql)
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U rcd -d rcd" ]
+      interval: 5s
+      retries: 30
+    restart: unless-stopped
+
+  geoserver:                            # Publica la capa normativa, comunas y barrios por WMS/WFS
+    image: docker.osgeo.org/geoserver:2.28.0
+    environment:
+      GEOSERVER_ADMIN_USER: admin
+      GEOSERVER_ADMIN_PASSWORD: ${GEOSERVER_PASSWORD:?Define GEOSERVER_PASSWORD en docker.env}
+      SKIP_DEMO_DATA: "true"
+      CORS_ENABLED: "true"
+      EXTRA_JAVA_OPTS: "-Xms256m -Xmx1g"
+    volumes: [ "datos_geoserver:/opt/geoserver_data" ]
+    ports: [ "${GEOSERVER_PORT:-8086}:8080" ]          # administración: http://equipo:8086/geoserver
+    depends_on: { db: { condition: service_healthy } }
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fs http://localhost:8080/geoserver/rest/about/version.json -u admin:$$GEOSERVER_ADMIN_PASSWORD > /dev/null" ]
+      interval: 15s
+      retries: 40
+      start_period: 60s
+    restart: unless-stopped
+
+  geoserver-config:                     # Crea workspace, conexión a PostGIS, estilos y capas (repetible)
+    build: { context: ., dockerfile: docker/api.Dockerfile }
+    entrypoint: [ "python", "docker/geoserver/configurar.py" ]
+    command: []
+    environment:
+      GEOSERVER_URL: http://geoserver:8080/geoserver
+      GEOSERVER_PASSWORD: ${GEOSERVER_PASSWORD}
+      DB_PASSWORD: ${DB_PASSWORD}
+    volumes: [ "./docker/geoserver:/app/docker/geoserver:ro" ]
+    depends_on: { geoserver: { condition: service_healthy } }
+    restart: "no"
+
+  api:                                  # API Flask + pantallas web (gunicorn)
+    build: { context: ., dockerfile: docker/api.Dockerfile }
+    environment: &entorno_api
+      DATABASE_URL: postgresql://rcd:${DB_PASSWORD}@db:5432/rcd
+      SECRET_KEY: ${SECRET_KEY:?Define SECRET_KEY en docker.env}
+      MODO_DEMO: ${MODO_DEMO:-0}
+      URL_PUBLICA: ${URL_PUBLICA:-http://localhost:8085}
+      GEOCODIFICADOR_URL: ${GEOCODIFICADOR_URL:-}
+      GEOSERVER_URL: http://geoserver:8080/geoserver
+      CARPETA_FOTOS: /app/fotos
+      TAREAS_CADA_MIN: "0"                # las tareas las corre el servicio "tareas"
+    extra_hosts: [ "host.docker.internal:host-gateway" ]
+    volumes: [ "fotos:/app/fotos" ]
+    ports: [ "${APP_PORT:-8085}:8000" ]
+    depends_on: { db: { condition: service_healthy } }
+    restart: unless-stopped
+
+  tareas:                               # R4 (sin cierre a las 24 h) y R6 (paradas), cada 5 minutos
+    build: { context: ., dockerfile: docker/api.Dockerfile }
+    entrypoint: [ "sh", "-c", "while true; do flask --app api tareas; sleep 300; done" ]
+    command: []
+    environment: *entorno_api
+    depends_on: { api: { condition: service_started } }
+    restart: unless-stopped
+
+volumes:
+  datos_db:
+  datos_geoserver:
+  fotos:

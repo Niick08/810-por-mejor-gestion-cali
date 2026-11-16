@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portería · Entradas</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/css/estilos.css">
+</head>
+<body>
+<main class="movil">
+  <div class="d-flex align-items-center mb-2 gap-2">
+    <span class="marca" id="receptor-nombre"><i class="bi bi-building"></i> Portería</span>
+    <span class="ms-auto small" id="ubicacion-estado"><i class="bi bi-geo-alt"></i> Ubicando…</span>
+    <button class="btn btn-sm btn-link text-secondary" onclick="salir()" title="Salir"><i class="bi bi-box-arrow-right"></i></button>
+  </div>
+  <div class="small text-secondary mb-2" data-usuario></div>
+  <button class="btn btn-sm btn-outline-warning w-100 mb-2 d-none" id="simular">
+    <i class="bi bi-cone-striped"></i> Modo demostración: simular que estoy en la planta</button>
+
+  <!-- ===================== ENTRADAS ===================== -->
+  <section id="vista-entradas" class="vista">
+    <!-- Paso 1: placa -->
+    <div id="e1" class="paso activo">
+      <label class="form-label fw-semibold" for="placa">Placa del camión</label>
+      <input class="form-control placa-input mb-2" id="placa" placeholder="XYZ123" maxlength="8" autocomplete="off">
+      <button class="btn btn-primary btn-xl mb-3" id="buscar"><i class="bi bi-search"></i> Buscar</button>
+      <div class="fw-semibold small mb-1">Hoy</div>
+      <div id="hoy-resumen" class="small"></div>
+    </div>
+
+    <!-- Paso 2: qué trae -->
+    <div id="e2" class="paso">
+      <button class="btn btn-link px-0 mb-1" data-volver="e1"><i class="bi bi-arrow-left"></i> Otra placa</button>
+      <div class="fw-semibold mb-2" id="e2-titulo"></div>
+      <div id="e2-lista"></div>
+      <div class="small text-secondary mb-2" id="e2-ayuda">Toca la foto para compararla con la carga. Marca solo lo que trae el camión.</div>
+      <button class="btn btn-primary btn-xl mb-2" id="continuar">Continuar</button>
+      <button class="btn btn-outline-secondary btn-xl" id="sin-origen">Registrar entrada sin origen</button>
+    </div>
+
+    <!-- Paso 3: lo que llegó -->
+    <div id="e3" class="paso">
+      <button class="btn btn-link px-0 mb-1" data-volver="e2"><i class="bi bi-arrow-left"></i> Volver</button>
+      <div class="tarjeta">
+        <div class="d-flex justify-content-between"><span>Declarado</span><b id="declarado"></b></div>
+        <div class="d-none" id="origen-barrio-caja">
+          <label class="form-label small mt-2" for="origen-barrio">Barrio de origen (pregunta al conductor)</label>
+          <input class="form-control" id="origen-barrio" placeholder="Barrio">
+        </div>
+      </div>
+      <div class="tarjeta">
+        <div class="mb-2 fw-semibold">Recibido (m³)</div>
+        <div class="contador mb-3">
+          <button class="btn btn-outline-secondary" data-paso="-0.5">−</button>
+          <output id="recibido">0</output>
+          <button class="btn btn-outline-secondary" data-paso="0.5">+</button>
+        </div>
+        <div class="btn-group w-100 mb-2" role="group">
+          <input type="radio" class="btn-check" name="peso" id="peso-estimar" checked>
+          <label class="btn btn-outline-secondary" for="peso-estimar">Estimar peso</label>
+          <input type="radio" class="btn-check" name="peso" id="peso-pesar">
+          <label class="btn btn-outline-secondary" for="peso-pesar">Lo pesé</label>
+        </div>
+        <input class="form-control mb-2 d-none" id="peso" type="number" step="0.01" min="0" placeholder="Toneladas">
+        <label class="form-label small" for="tipo">Tipo verificado</label>
+        <select class="form-select mb-2" id="tipo"></select>
+        <input class="form-control mb-2" id="precinto" placeholder="Precinto (si trae)">
+        <label class="btn btn-outline-primary w-100"><i class="bi bi-camera"></i> Foto de llegada
+          <input type="file" accept="image/*" capture="environment" id="foto-llegada" hidden></label>
+        <div class="small text-success mt-1" id="foto-llegada-ok"></div>
+      </div>
+      <button class="btn btn-primary btn-xl mb-2" id="recibir"><i class="bi bi-check-lg"></i> Recibir y cerrar</button>
+      <button class="btn btn-outline-danger btn-xl" id="a-rechazo"><i class="bi bi-slash-circle"></i> Rechazar carga</button>
+    </div>
+
+    <!-- Paso 4: rechazo -->
+    <div id="e4" class="paso">
+      <button class="btn btn-link px-0 mb-1" data-volver="e3"><i class="bi bi-arrow-left"></i> Volver</button>
+      <div class="tarjeta">
+        <div class="fw-semibold mb-2">Motivo del rechazo</div>
+        <div id="motivos"></div>
+      </div>
+      <label class="btn btn-outline-danger w-100 mb-1"><i class="bi bi-camera"></i> Foto de la carga (obligatoria)
+        <input type="file" accept="image/*" capture="environment" id="foto-rechazo" hidden></label>
+      <div class="small text-success mb-2" id="foto-rechazo-ok"></div>
+      <button class="btn btn-danger btn-xl" id="rechazar">Confirmar rechazo</button>
+      <div class="tarjeta small mt-3"><i class="bi bi-info-circle"></i> El movimiento <b>sigue abierto</b>. Se avisa al
+        generador y al conductor se le muestran los sitios cercanos que sí reciben este material.</div>
+    </div>
+  </section>
+
+  <!-- ===================== SALIDAS ===================== -->
+  <section id="vista-salidas" class="vista d-none">
+    <h1 class="h6">Despachar material a otro sitio</h1>
+    <div class="tarjeta">
+      <label class="form-label small" for="s-placa">Placa</label>
+      <input class="form-control placa-input mb-2" id="s-placa" maxlength="8" placeholder="KLM901">
+      <div class="small text-secondary">Material</div>
+      <div id="s-tipos" class="mb-2"></div>
+      <label class="form-label small" for="s-volumen">Volumen (m³)</label>
+      <input class="form-control mb-2" id="s-volumen" type="number" step="0.5" min="0.5" value="6">
+      <label class="btn btn-outline-primary w-100"><i class="bi bi-camera"></i> Foto de la carga
+        <input type="file" accept="image/*" capture="environment" id="s-foto" hidden></label>
+    </div>
+    <button class="btn btn-primary btn-xl" id="despachar">Despachar</button>
+  </section>
+
+  <!-- ===================== HOY ===================== -->
+  <section id="vista-hoy" class="vista d-none">
+    <h1 class="h6">Entradas de hoy</h1>
+    <div id="hoy-lista"></div>
+  </section>
+</main>
+
+<nav class="barra-inferior">
+  <button class="activo" data-vista="entradas"><i class="bi bi-box-arrow-in-down"></i>Entradas</button>
+  <button data-vista="salidas"><i class="bi bi-box-arrow-up"></i>Salidas</button>
+  <button data-vista="hoy"><i class="bi bi-list-check"></i>Hoy</button>
+</nav>
+
+<script src="/js/comun.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const estado = { placa: '', movimientos: [], seleccion: new Set(), ubic: null, receptor: null, sinOrigen: false };
+  const paso = (id) => document.querySelectorAll('#vista-entradas .paso').forEach((p) => p.classList.toggle('activo', p.id === id));
+  document.querySelectorAll('[data-volver]').forEach((b) => (b.onclick = () => paso(b.dataset.volver)));
+
+  // ---------------------------------------------------- navegación inferior
+  document.querySelectorAll('[data-vista]').forEach((b) => (b.onclick = () => {
+    document.querySelectorAll('[data-vista]').forEach((x) => x.classList.toggle('activo', x === b));
+    document.querySelectorAll('.vista').forEach((v) => v.classList.toggle('d-none', v.id !== `vista-${b.dataset.vista}`));
+    if (b.dataset.vista === 'hoy') cargarHoy();
+  }));
+
+  // ---------------------------------------------------- ubicación del celular (regla R1)
+  function marcarUbicacion(texto, clase) { $('ubicacion-estado').className = `ms-auto small ${clase}`; $('ubicacion-estado').innerHTML = texto; }
+  async function ubicar() {
+    try {
+      estado.ubic = await ubicacionDispositivo();
+      marcarUbicacion('<i class="bi bi-geo-alt-fill"></i> GPS activo', 'text-success');
+    } catch { marcarUbicacion('<i class="bi bi-geo-alt"></i> Sin GPS', 'text-danger'); }
+  }
+  $('simular').onclick = () => {
+    estado.ubic = { lon: estado.receptor.lon, lat: estado.receptor.lat };
+    marcarUbicacion('<i class="bi bi-cone-striped"></i> Ubicación simulada', 'text-warning-emphasis');
+  };
+  const coords = () => {
+    if (!estado.ubic) throw new Error('Activa el GPS del celular: la entrada solo se registra dentro de la planta.');
+    return { lon: estado.ubic.lon.toFixed(6), lat: estado.ubic.lat.toFixed(6) };
+  };
+
+  // ---------------------------------------------------- paso 1 → 2: buscar placa
+  $('buscar').onclick = async () => {
+    const placa = $('placa').value.trim();
+    if (!placa) return aviso('Escribe la placa', 'warning');
+    try {
+      const r = await get('/api/entradas/abiertos?placa=' + encodeURIComponent(placa));
+      Object.assign(estado, { placa: r.placa, movimientos: r.movimientos, seleccion: new Set(r.movimientos.map((m) => m.codigo)) });
+      $('e2-titulo').innerHTML = r.movimientos.length
+        ? `${esc(r.placa)} · ${r.movimientos.length} movimiento${r.movimientos.length > 1 ? 's' : ''} por cerrar`
+        : `${esc(r.placa)} · <span class="text-warning-emphasis">no hay movimientos abiertos</span>`;
+      pintarLista();
+      $('continuar').classList.toggle('d-none', !r.movimientos.length);
+      $('e2-ayuda').classList.toggle('d-none', !r.movimientos.length);
+      paso('e2');
+    } catch (e) { aviso(esc(e.message), 'danger'); }
+  };
+  $('placa').onkeydown = (e) => { if (e.key === 'Enter') $('buscar').click(); };
+
+  function pintarLista() {
+    $('e2-lista').innerHTML = estado.movimientos.map((m) => `
+      <div class="mov-item ${estado.seleccion.has(m.codigo) ? 'sel' : ''}" data-codigo="${esc(m.codigo)}">
+        <a href="${esc(m.foto_carga_url)}" target="_blank" onclick="event.stopPropagation()"><img src="${esc(m.foto_carga_url)}" alt="Foto de la carga" onerror="this.onerror=null;this.src=FOTO_VACIA"></a>
+        <div class="flex-grow-1"><b>${num(m.volumen_declarado_m3)} m³</b> · ${esc(m.tipo_rcd.split(':')[0])} ${m.estado !== 'abierto' ? chip(m.estado) : ''}<br>
+          <span class="small text-secondary">${hora(m.abierto_en)} · ${esc(m.barrio || '—')} · ${esc(m.origen)}</span></div>
+        <i class="bi ${estado.seleccion.has(m.codigo) ? 'bi-check-square-fill text-primary' : 'bi-square'} fs-4"></i>
+      </div>`).join('');
+    const total = estado.movimientos.filter((m) => estado.seleccion.has(m.codigo)).reduce((s, m) => s + m.volumen_declarado_m3, 0);
+    $('continuar').textContent = `Continuar con ${estado.seleccion.size} · ${num(total)} m³`;
+    $('continuar').disabled = !estado.seleccion.size;
+  }
+  $('e2-lista').onclick = (e) => {
+    const item = e.target.closest('[data-codigo]');
+    if (!item) return;
+    const c = item.dataset.codigo;
+    estado.seleccion.has(c) ? estado.seleccion.delete(c) : estado.seleccion.add(c);
+    pintarLista();
+  };
+
+  // ---------------------------------------------------- paso 3: lo que llegó
+  let recibido = 0;
+  const pintarRecibido = () => ($('recibido').textContent = num(recibido));
+  document.querySelectorAll('[data-paso]').forEach((b) => (b.onclick = () => {
+    recibido = Math.max(0, recibido + Number(b.dataset.paso)); pintarRecibido();
+  }));
+  $('peso-pesar').onchange = $('peso-estimar').onchange = () => $('peso').classList.toggle('d-none', !$('peso-pesar').checked);
+  ['foto-llegada', 'foto-rechazo'].forEach((id) => ($(id).onchange = (e) => ($(id + '-ok').textContent = e.target.files.length ? '✓ Foto lista' : '')));
+
+  function irAPaso3(sinOrigen) {
+    estado.sinOrigen = sinOrigen;
+    const sel = estado.movimientos.filter((m) => estado.seleccion.has(m.codigo));
+    const declarado = sel.reduce((s, m) => s + m.volumen_declarado_m3, 0);
+    $('declarado').textContent = sinOrigen ? 'Sin movimiento abierto' : `${num(declarado)} m³`;
+    $('origen-barrio-caja').classList.toggle('d-none', !sinOrigen);
+    $('a-rechazo').classList.toggle('d-none', sinOrigen);
+    recibido = sinOrigen ? 3 : declarado; pintarRecibido();
+    paso('e3');
+  }
+  $('continuar').onclick = () => irAPaso3(false);
+  $('sin-origen').onclick = () => { estado.seleccion.clear(); irAPaso3(true); };
+
+  async function enviarEntrada(resultado, extra = {}) {
+    try {
+      const d = new FormData();
+      const datos = { placa: estado.placa, resultado, receptor_id: estado.receptor.id,
+                      codigos: [...estado.seleccion].join(','), ...coords(), ...extra };
+      Object.entries(datos).forEach(([k, v]) => v !== undefined && v !== null && d.append(k, v));
+      const r = await post('/api/entradas', d);
+      const faltante = r.alertas.find((a) => a.tipo === 'faltante');
+      if (resultado === 'rechazada') aviso('Rechazo registrado. El movimiento sigue abierto y se avisó al generador.', 'warning', 6000);
+      else if (faltante) aviso(`Cerrado <b>con faltante</b> de ${num(faltante.detalle.faltante_m3)} m³. Se avisó al administrador.`, 'warning', 7000);
+      else aviso(resultado === 'sin_origen' ? 'Entrada sin origen registrada.' : `✓ ${r.movimientos.length} movimiento(s) cerrado(s). Se envió la constancia.`);
+      reiniciar();
+    } catch (e) { aviso(esc(e.message), 'danger', 8000); }
+  }
+  $('recibir').onclick = () => {
+    if (estado.sinOrigen && !$('origen-barrio').value.trim()) return aviso('Escribe el barrio de origen', 'warning');
+    enviarEntrada(estado.sinOrigen ? 'sin_origen' : 'recibida', {
+      volumen: recibido, tipo_rcd: $('tipo').value, precinto: $('precinto').value || undefined,
+      peso: $('peso-pesar').checked ? $('peso').value : undefined,
+      foto: $('foto-llegada').files[0],
+    });
+  };
+
+  // ---------------------------------------------------- paso 4: rechazo
+  const motivo = chips($('motivos'), [
+    ['mezcla_basura', 'Mezclado con basura'], ['peligrosos', 'Residuos peligrosos'],
+    ['material_no_aceptado', 'Material que no recibimos'], ['sin_capacidad', 'Sin capacidad'],
+  ].map(([valor, texto]) => ({ valor, texto })), 'mezcla_basura');
+  $('a-rechazo').onclick = () => paso('e4');
+  $('rechazar').onclick = () => {
+    if (!$('foto-rechazo').files[0]) return aviso('La foto de la carga es obligatoria para rechazar', 'warning');
+    enviarEntrada('rechazada', { motivo: motivo(), foto: $('foto-rechazo').files[0] });
+  };
+
+  async function reiniciar() {
+    $('placa').value = ''; $('precinto').value = ''; $('peso').value = ''; $('origen-barrio').value = '';
+    ['foto-llegada', 'foto-rechazo'].forEach((id) => { $(id).value = ''; $(id + '-ok').textContent = ''; });
+    paso('e1'); await cargarHoy();
+  }
+
+  // ---------------------------------------------------- salidas
+  let tipoSalida;
+  $('despachar').onclick = async () => {
+    try {
+      const d = new FormData();
+      Object.entries({ placa: $('s-placa').value, tipo_rcd: tipoSalida(), volumen: $('s-volumen').value,
+                       receptor_id: estado.receptor.id }).forEach(([k, v]) => d.append(k, v));
+      if ($('s-foto').files[0]) d.append('foto_carga', $('s-foto').files[0]);
+      const r = await post('/api/salidas', d);
+      aviso(`Salida registrada: movimiento <b>${esc(r.codigo)}</b>. El receptor de destino lo cerrará por la placa.`);
+      $('s-placa').value = ''; $('s-foto').value = '';
+    } catch (e) { aviso(esc(e.message), 'danger'); }
+  };
+
+  // ---------------------------------------------------- hoy
+  async function cargarHoy() {
+    const { entradas } = await get('/api/entradas/hoy');
+    const icono = (e) => e.resultado === 'rechazada' ? '<span class="text-danger">✕ rechazada</span>'
+      : e.resultado === 'sin_origen' ? '<span class="text-warning-emphasis">sin origen</span>'
+      : e.con_faltante ? '<span class="text-warning-emphasis">⚠ faltante</span>' : '<span class="text-success">✓ cerrado</span>';
+    const filas = entradas.map((e) => `<div class="d-flex justify-content-between border-bottom py-1">
+        <span>${hora(e.registrada_en)} · <b>${esc(e.placa)}</b></span>
+        <span>${e.volumen_recibido_m3 != null ? num(e.volumen_recibido_m3) + ' m³ · ' : ''}${icono(e)}</span></div>`);
+    const total = entradas.filter((e) => e.resultado !== 'rechazada').reduce((s, e) => s + (e.volumen_recibido_m3 || 0), 0);
+    const pie = `<div class="text-secondary mt-1">Total: ${num(total)} m³ · ${entradas.length} camiones</div>`;
+    $('hoy-lista').innerHTML = `<div class="tarjeta">${filas.join('') || 'Aún no hay entradas hoy.'}${pie}</div>`;
+    $('hoy-resumen').innerHTML = `<div class="tarjeta">${filas.slice(0, 4).join('') || 'Aún no hay entradas hoy.'}${pie}</div>`;
+  }
+
+  // ---------------------------------------------------- inicio
+  (async () => {
+    await sesion((u) => u.perfil === 'portero');
+    const [{ receptores }, cfg, tipos] = await Promise.all([get('/api/receptores/mios'), get('/api/publico/config'), tiposRCD()]);
+    estado.receptor = receptores[0];
+    $('receptor-nombre').innerHTML = `<i class="bi bi-building"></i> ${esc(estado.receptor.nombre)}`;
+    $('tipo').innerHTML = opcionesTipo(tipos).map((o) => `<option value="${o.valor}" ${o.valor === 3 ? 'selected' : ''}>${esc(o.texto)}</option>`).join('');
+    tipoSalida = chips($('s-tipos'), opcionesTipo(tipos), 3);
+    if (cfg.demo) $('simular').classList.remove('d-none');
+    ubicar();
+    cargarHoy();
+  })();
+</script>
+</body>
+</html>

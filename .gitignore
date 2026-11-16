@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+docker.env
+fotos/
+
+# Rondas hídricas de la IDESC (29 MB): scripts/cargar_datos_reales.py la descarga si falta
+db/datos_reales/afp_hidrico.geojson

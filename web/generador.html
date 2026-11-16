@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Registrar escombros</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="/css/estilos.css">
+</head>
+<body>
+<main class="movil" style="padding-bottom: 24px">
+  <div class="d-flex align-items-center mb-3">
+    <a href="/" class="marca text-decoration-none text-body"><i class="bi bi-truck"></i> Trazabilidad RCD</a>
+    <span class="ms-auto small text-secondary">sin cuenta</span>
+  </div>
+
+  <!-- Paso 1: registrar -->
+  <form id="paso-registro" class="paso">
+    <h1 class="h5">Registrar mis escombros</h1>
+    <div class="tarjeta">
+      <div class="fw-semibold mb-2">1. ¿Dónde están?</div>
+      <div id="ubicacion"></div>
+    </div>
+    <div class="tarjeta">
+      <div class="fw-semibold mb-2">2. ¿Qué es y cuánto?</div>
+      <label class="btn btn-outline-primary w-100 mb-2"><i class="bi bi-camera"></i> Foto de los escombros
+        <input type="file" accept="image/*" capture="environment" id="foto-carga" hidden required></label>
+      <div class="small text-success mb-2" id="foto-carga-ok"></div>
+      <div class="small text-secondary">Tipo de material</div>
+      <div id="tipos" class="mb-2"></div>
+      <div class="small text-secondary">Volumen aproximado (m³)</div>
+      <div id="volumenes"></div>
+      <div class="small text-secondary">½ m³ ≈ 10 bultos · 6 m³ ≈ una volqueta</div>
+    </div>
+    <div class="tarjeta">
+      <div class="fw-semibold mb-2">3. ¿Quién se lo lleva?</div>
+      <label class="btn btn-outline-primary w-100 mb-2"><i class="bi bi-truck-front"></i> Foto del camión con la placa
+        <input type="file" accept="image/*" capture="environment" id="foto-placa" hidden></label>
+      <input class="form-control placa-input" id="placa" placeholder="XYZ123" maxlength="8" required>
+      <div class="small mt-1" id="transportador"></div>
+    </div>
+    <div class="tarjeta">
+      <label class="form-label small" for="celular">Celular para avisarte (opcional)</label>
+      <input class="form-control mb-2" id="celular" type="tel" inputmode="tel" placeholder="3xx xxx xxxx">
+      <div class="form-check small">
+        <input class="form-check-input" type="checkbox" id="acepta">
+        <label class="form-check-label" for="acepta">Autorizo el uso de mis datos solo para avisarme sobre este
+          registro (Ley 1581 de 2012).</label>
+      </div>
+    </div>
+    <div class="text-danger small mb-2" id="error"></div>
+    <button class="btn btn-primary btn-xl" id="enviar">Entregar escombros</button>
+  </form>
+
+  <!-- Paso 2: código para el conductor -->
+  <section id="paso-codigo" class="paso text-center">
+    <h1 class="h5">Movimiento abierto</h1>
+    <div class="tarjeta">
+      <div id="qr" class="d-flex justify-content-center"></div>
+      <div class="fs-4 fw-semibold mt-1" id="codigo"></div>
+      <div class="text-secondary small" id="resumen"></div>
+    </div>
+    <a class="btn btn-success btn-xl mb-2" id="whatsapp" target="_blank" rel="noopener">
+      <i class="bi bi-whatsapp"></i> Enviar al conductor</a>
+    <div class="tarjeta small text-start">
+      <i class="bi bi-info-circle"></i> No es obligatorio: el sitio que reciba los escombros encuentra este registro
+      con la <b>placa</b>. Debe llegar a un sitio autorizado en <b id="horas">24</b> horas.
+    </div>
+    <div class="tarjeta small text-start d-none" id="sin-pin">
+      <i class="bi bi-exclamation-triangle text-warning"></i> <b>Este transportador no está inscrito.</b>
+      Usted sigue siendo responsable de sus escombros.
+    </div>
+    <a class="btn btn-outline-primary btn-xl" id="ver-estado">Ver estado</a>
+  </section>
+
+  <!-- Paso 3: estado -->
+  <section id="paso-estado" class="paso">
+    <h1 class="h5">Mis escombros · <span id="e-codigo"></span></h1>
+    <div class="tarjeta">
+      <div class="d-flex justify-content-between"><span id="e-material"></span><span id="e-chip"></span></div>
+      <div class="small text-secondary" id="e-detalle"></div>
+    </div>
+    <div class="tarjeta"><ul class="linea-tiempo" id="e-eventos"></ul></div>
+    <div id="e-accion"></div>
+  </section>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script src="/js/comun.js"></script>
+<script>
+  const mostrar = (id) => document.querySelectorAll('.paso').forEach((p) => p.classList.toggle('activo', p.id === id));
+  const codigoEnRuta = location.pathname.match(/^\/m\/([A-Za-z0-9-]+)/);
+
+  // ---------------------------------------------------- paso 3: estado
+  const EVENTO = {
+    abierto: ['Registrado', ''], recogido: ['Recogido', ''], rechazado: ['Rechazado', 'medio'],
+    cerrado: ['Recibido', ''], cerrado_faltante: ['Recibido con faltante', 'medio'],
+    sin_cierre: ['No llegó a un sitio autorizado', 'mal'], anulado: ['Anulado', 'mal'],
+  };
+  async function verEstado(codigo) {
+    mostrar('paso-estado');
+    history.replaceState(null, '', `/m/${codigo}`);
+    const m = await get(`/api/publico/movimientos/${codigo}`);
+    document.getElementById('e-codigo').textContent = m.codigo;
+    document.getElementById('e-material').textContent = `${num(m.volumen_declarado_m3)} m³ · ${m.tipo_rcd}`;
+    document.getElementById('e-chip').innerHTML = chip(m.estado);
+    document.getElementById('e-detalle').textContent = `Placa ${m.placa}${m.barrio ? ' · ' + m.barrio : ''}`;
+    document.getElementById('e-eventos').innerHTML = m.eventos.map((ev) => {
+      const [t, clase] = EVENTO[ev.tipo] || [legible(ev.tipo), ''];
+      return `<li class="${clase}"><b>${esc(t)}</b>${ev.receptor ? ' en ' + esc(ev.receptor) : ''}
+              ${ev.motivo ? ' · ' + esc(legible(ev.motivo)) : ''}${ev.cierre_tardio ? ' · llegó tarde' : ''}
+              <div class="small text-secondary">${fecha(ev.ocurrido_en)}</div></li>`;
+    }).join('');
+    const accion = document.getElementById('e-accion');
+    if (['cerrado', 'cerrado_faltante'].includes(m.estado)) {
+      accion.innerHTML = `<a class="btn btn-primary btn-xl" target="_blank" href="/api/publico/movimientos/${esc(m.codigo)}/certificado">
+                            <i class="bi bi-file-earmark-check"></i> Ver certificado</a>`;
+    } else if (m.estado === 'rechazado') {
+      const s = await get(`/api/publico/movimientos/${m.codigo}/sugeridos`);
+      accion.innerHTML = `<div class="tarjeta"><b>Sitios cercanos que sí reciben este material</b>
+        ${s.receptores.map((r) => `<div class="d-flex justify-content-between border-top pt-1 mt-1 small">
+          <span>${esc(r.nombre)}<br><span class="text-secondary">${esc(legible(r.tipo))}</span></span>
+          <span>${num(r.distancia_m / 1000)} km</span></div>`).join('')}
+        <div class="small text-secondary mt-2">Si el material venía mezclado con basura, primero debe separarse.</div></div>`;
+    } else if (m.estado === 'sin_cierre') {
+      accion.innerHTML = `<div class="alert alert-danger">No hay registro de que tus escombros llegaran a un sitio autorizado.
+        Usted sigue siendo responsable de ellos. Comunícate con el transportador o con la línea 110.</div>`;
+    } else {
+      accion.innerHTML = `<button class="btn btn-outline-primary btn-xl" onclick="verEstado('${esc(m.codigo)}')">
+                            <i class="bi bi-arrow-clockwise"></i> Actualizar</button>`;
+    }
+  }
+
+  // ---------------------------------------------------- paso 1: registro
+  async function iniciarRegistro() {
+    mostrar('paso-registro');
+    const ubicacion = selectorUbicacion(document.getElementById('ubicacion'));
+    const tipos = await tiposRCD();
+    const tipo = chips(document.getElementById('tipos'), opcionesTipo(tipos), 3);
+    const volumen = chips(document.getElementById('volumenes'),
+      [['0.5', '½'], ['1', '1'], ['2', '2'], ['3', '3'], ['6', '6']].map(([v, t]) => ({ valor: v, texto: t })), '1');
+    const cfg = await get('/api/publico/config');
+    document.getElementById('horas').textContent = num(cfg.horas_sin_cierre, 0);
+
+    document.getElementById('foto-carga').onchange = (e) =>
+      (document.getElementById('foto-carga-ok').textContent = e.target.files.length ? '✓ Foto lista' : '');
+    let inscrito = null;
+    document.getElementById('placa').onblur = async (e) => {
+      if (!e.target.value.trim()) return;
+      const t = await get('/api/publico/transportador?placa=' + encodeURIComponent(e.target.value));
+      inscrito = t.inscrito;
+      document.getElementById('transportador').innerHTML = t.inscrito
+        ? `<span class="text-success"><i class="bi bi-patch-check"></i> ${esc(t.nombre)} · PIN de gestor</span>`
+        : `<span class="text-warning-emphasis"><i class="bi bi-exclamation-triangle"></i> Esta placa no es de un transportador inscrito. Usted sigue siendo responsable de sus escombros.</span>`;
+    };
+
+    document.getElementById('paso-registro').onsubmit = async (e) => {
+      e.preventDefault();
+      const error = document.getElementById('error');
+      error.textContent = '';
+      try {
+        const u = ubicacion.obtener();
+        const datos = new FormData();
+        Object.entries({ ...u, placa: placa.value, tipo_rcd: tipo(), volumen: volumen(),
+          celular: celular.value, acepta_datos: acepta.checked }).forEach(([k, v]) => datos.append(k, v));
+        datos.append('foto_carga', document.getElementById('foto-carga').files[0] || '');
+        if (document.getElementById('foto-placa').files[0]) datos.append('foto_placa', document.getElementById('foto-placa').files[0]);
+        document.getElementById('enviar').disabled = true;
+        const r = await post('/api/publico/movimientos', datos);
+        mostrarCodigo(r, inscrito);
+      } catch (err) { error.textContent = err.message; }
+      finally { document.getElementById('enviar').disabled = false; }
+    };
+  }
+
+  // ---------------------------------------------------- paso 2: código
+  function mostrarCodigo(r, inscrito) {
+    mostrar('paso-codigo');
+    const qr = qrcode(0, 'M');
+    qr.addData(r.enlace);
+    qr.make();
+    document.getElementById('qr').innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2 });
+    document.getElementById('codigo').textContent = r.codigo;
+    document.getElementById('resumen').textContent = `Placa ${r.placa}`;
+    document.getElementById('whatsapp').href = 'https://wa.me/?text=' +
+      encodeURIComponent(`Escombros registrados (${r.codigo}). Al entregarlos en el sitio autorizado, muestra este código: ${r.enlace}`);
+    document.getElementById('sin-pin').classList.toggle('d-none', inscrito !== false);
+    document.getElementById('ver-estado').onclick = () => verEstado(r.codigo);
+  }
+
+  if (codigoEnRuta) verEstado(codigoEnRuta[1]).catch((e) => aviso(esc(e.message), 'danger'));
+  else iniciarRegistro();
+</script>
+</body>
+</html>
