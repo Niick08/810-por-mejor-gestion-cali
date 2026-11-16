@@ -58,7 +58,14 @@ docker compose --env-file docker.env down -v
 - El geocodificador se alcanza desde el contenedor en `http://host.docker.internal/api` (nginx del propio Lenovo).
 - Convive con lo que ya corría (PostgreSQL 18 en 5432, nginx en 80): no hay puertos en conflicto.
 
-Para actualizar después de cambiar el código: copiar el proyecto y correr `docker compose --env-file docker.env up -d --build`. La base de datos **no** se recrea, porque su volumen se conserva.
+**Actualizar con GitHub.** La carpeta del Lenovo es una copia del repositorio [Niick08/810-por-mejor-gestion-cali](https://github.com/Niick08/810-por-mejor-gestion-cali):
+
+```
+Este PC:  git add -A && git commit -m "…" && git push
+Lenovo:   cd ~/rcd-trazabilidad && git pull && docker compose --env-file docker.env up -d --build
+```
+
+`docker.env` (claves) y la capa de rondas de 29 MB no están en git: el `git pull` no los toca. La base de datos **no** se recrea, porque su volumen se conserva.
 
 ## 5. Docker en este PC (Windows)
 

@@ -99,6 +99,7 @@ TEST_DATABASE_URL="postgresql://postgres:TU_CLAVE@localhost:5432/rcd_test" .venv
 | Pantallas web (celular y PC) | Hecho, v1 probada en el navegador (16-nov-2026) |
 | Datos reales (IDESC, NSR-10) | Hecho (16-nov-2026) |
 | Docker + GeoServer, desplegado en el Lenovo | Hecho (16-nov-2026) |
-| Repositorio en GitHub, memoria y video | Siguiente |
+| Repositorio en GitHub | Hecho: [Niick08/810-por-mejor-gestion-cali](https://github.com/Niick08/810-por-mejor-gestion-cali) |
+| Memoria, video y publicación en internet (Funnel) | Siguiente |
 | Implementación | Pendiente |
 | Memoria y video | Pendiente |
